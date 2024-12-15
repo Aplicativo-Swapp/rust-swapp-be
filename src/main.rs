@@ -2,10 +2,13 @@ use actix_web::{web, App, HttpServer, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPoolOptions;
 use dotenv::dotenv;
+use utoipa::ToSchema;
 use std::env;
 use chrono::Utc;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
-#[derive(Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Deserialize, Serialize, sqlx::FromRow, ToSchema)]
 struct Dados {
     id_users: i32,
     id_sub_habilidade: i32,
@@ -14,6 +17,15 @@ struct Dados {
 }
 
 // POST: Insere dados no banco
+#[utoipa::path(
+    post,
+    path = "/inserir",
+    request_body = Dados,
+    responses(
+        (status = 200, description = "Dados inseridos com sucesso"),
+        (status = 500, description = "Erro ao inserir dados")
+    )
+)]
 async fn inserir_dados(
     pool: web::Data<sqlx::PgPool>,
     dados: web::Json<Dados>,
@@ -44,6 +56,17 @@ async fn inserir_dados(
 }
 
 // GET: Retorna todos os dados de um usuário
+#[utoipa::path(
+    get,
+    path = "/obter/{id_users}",
+    params(
+        ("id_users" = i32, Path, description = "ID do usuário")
+    ),
+    responses(
+        (status = 200, description = "Dados do usuário", body = [Dados]),
+        (status = 500, description = "Erro ao buscar dados")
+    )
+)]
 async fn obter_dados(
     pool: web::Data<sqlx::PgPool>,
     path: web::Path<i32>, // Recebe o ID do usuário como parâmetro
@@ -70,6 +93,14 @@ async fn obter_dados(
 }
 
 // GET: Retorna todos os dados da tabela
+#[utoipa::path(
+    get,
+    path = "/obter_tudo",
+    responses(
+        (status = 200, description = "Todos os dados", body = [Dados]),
+        (status = 500, description = "Erro ao buscar todos os dados")
+    )
+)]
 async fn obter_tudo(
     pool: web::Data<sqlx::PgPool>,
 ) -> impl Responder {
@@ -92,6 +123,17 @@ async fn obter_tudo(
 }
 
 // DELETE: Deleta todos os dados de um usuário
+#[utoipa::path(
+    delete,
+    path = "/deletar/{id_users}",
+    params(
+        ("id_users" = i32, Path, description = "ID do usuário")
+    ),
+    responses(
+        (status = 200, description = "Dados deletados com sucesso"),
+        (status = 500, description = "Erro ao deletar dados")
+    )
+)]
 async fn deletar_dados(
     pool: web::Data<sqlx::PgPool>,
     path: web::Path<i32>, // Recebe o ID do usuário como parâmetro
@@ -117,6 +159,15 @@ async fn deletar_dados(
 }
 
 // PUT: Atualiza todos os dados de uma sub-habilidade de um usuário
+#[utoipa::path(
+    put,
+    path = "/atualizar",
+    request_body = Dados,
+    responses(
+        (status = 200, description = "Dados atualizados com sucesso"),
+        (status = 500, description = "Erro ao atualizar dados")
+    )
+)]
 async fn atualizar_dados(
     pool: web::Data<sqlx::PgPool>,
     dados: web::Json<Dados>, // Recebe os dados no corpo da requisição
@@ -152,6 +203,15 @@ struct LikeRequest {
 }
 
 // POST: Adiciona um novo "like" na tabela `teste_match`
+#[utoipa::path(
+    post,
+    path = "/add_like",
+    request_body = LikeRequest,
+    responses(
+        (status = 200, description = "Like adicionado com sucesso"),
+        (status = 500, description = "Erro ao adicionar like")
+    )
+)]
 async fn adicionar_like(
     pool: web::Data<sqlx::PgPool>,
     dados: web::Json<LikeRequest>, // Usa a struct LikeRequest
@@ -180,6 +240,17 @@ async fn adicionar_like(
 
 
 // GET: Retorna os IDs de quem deu like em um usuário específico
+#[utoipa::path(
+    get,
+    path = "/buscar_likes/{id}",
+    params(
+        ("id" = i32, Path, description = "ID do usuário que recebeu os likes")
+    ),
+    responses(
+        (status = 200, description = "IDs de quem deu like", body = [i32]),
+        (status = 500, description = "Erro ao buscar likes")
+    )
+)]
 async fn buscar_likes(
     pool: web::Data<sqlx::PgPool>,
     path: web::Path<i32>, // Recebe o ID do usuário (id_liked)
@@ -216,6 +287,15 @@ struct MatchRequest {
 }
 
 // PUT: Atualiza a coluna match para true em uma linha específica
+#[utoipa::path(
+    put,
+    path = "/match",
+    request_body = MatchRequest,
+    responses(
+        (status = 200, description = "Match atualizado com sucesso"),
+        (status = 500, description = "Erro ao atualizar match")
+    )
+)]
 async fn atualizar_match(
     pool: web::Data<sqlx::PgPool>,
     dados: web::Json<MatchRequest>, // Usa uma struct ao invés de tupla
@@ -244,6 +324,17 @@ async fn atualizar_match(
 }
 
 // GET: Retorna todos os "matches" de um usuário especificado pelo id_liked
+#[utoipa::path(
+    get,
+    path = "/matches/{id_liked}",
+    params(
+        ("id_liked" = i32, Path, description = "ID do usuário que recebeu os matches")
+    ),
+    responses(
+        (status = 200, description = "IDs de quem deu match", body = [i32]),
+        (status = 500, description = "Erro ao buscar matches")
+    )
+)]
 async fn buscar_matches(
     pool: web::Data<sqlx::PgPool>,
     path: web::Path<i32>, // Recebe o id_liked como parâmetro
@@ -294,6 +385,26 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            inserir_dados,
+            obter_dados,
+            deletar_dados,
+            atualizar_dados, 
+            adicionar_like,
+            buscar_likes,
+            atualizar_match,
+            buscar_matches
+        ),
+        components(schemas(Dados)),
+        tags(
+            (name = "Usuario", description = "APIs para gerenciamento de habilidades de usuários")
+        )
+    )]
+struct ApiDoc;
+
+    let openapi = ApiDoc::openapi();
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(pool.clone()))
@@ -306,7 +417,9 @@ async fn main() -> std::io::Result<()> {
             .route("/buscar_likes/{id}", web::get().to(buscar_likes)) // Novo endpoint GET
             .route("/match", web::put().to(atualizar_match))
             .route("/matches/{id_liked}", web::get().to(buscar_matches))
-    })    
+            // Swagger UI
+            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),)
+    })
     .bind("127.0.0.1:8080")?
     .run()
     .await
