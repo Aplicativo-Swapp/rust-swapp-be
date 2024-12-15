@@ -144,6 +144,133 @@ async fn atualizar_dados(
     }
 }
 
+// ENDPOINTS DO MATCH
+#[derive(Deserialize)]
+struct LikeRequest {
+    id_deu_like: i32,
+    id_liked: i32,
+}
+
+// POST: Adiciona um novo "like" na tabela `teste_match`
+async fn adicionar_like(
+    pool: web::Data<sqlx::PgPool>,
+    dados: web::Json<LikeRequest>, // Usa a struct LikeRequest
+) -> impl Responder {
+    let LikeRequest { id_deu_like, id_liked } = dados.into_inner();
+
+    let query = r#"
+        INSERT INTO public.teste_match (id_deu_like, id_liked, match)
+        VALUES ($1, $2, FALSE)
+    "#;
+
+    let result = sqlx::query(query)
+        .bind(id_deu_like)
+        .bind(id_liked)
+        .execute(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json("Like adicionado com sucesso"),
+        Err(e) => {
+            eprintln!("Erro ao adicionar like: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao adicionar like")
+        }
+    }
+}
+
+
+// GET: Retorna os IDs de quem deu like em um usuário específico
+async fn buscar_likes(
+    pool: web::Data<sqlx::PgPool>,
+    path: web::Path<i32>, // Recebe o ID do usuário (id_liked)
+) -> impl Responder {
+    let id_liked = path.into_inner();
+
+    let query = r#"
+        SELECT id_deu_like
+        FROM public.teste_match
+        WHERE id_liked = $1
+    "#;
+
+    let result = sqlx::query_as::<_, (i32,)>(query)
+        .bind(id_liked)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(dados) => {
+            let ids: Vec<i32> = dados.into_iter().map(|(id_deu_like,)| id_deu_like).collect();
+            HttpResponse::Ok().json(ids)
+        }
+        Err(e) => {
+            eprintln!("Erro ao buscar likes: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar likes")
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct MatchRequest {
+    id_deu_like: i32,
+    id_liked: i32,
+}
+
+// PUT: Atualiza a coluna match para true em uma linha específica
+async fn atualizar_match(
+    pool: web::Data<sqlx::PgPool>,
+    dados: web::Json<MatchRequest>, // Usa uma struct ao invés de tupla
+) -> impl Responder {
+    let MatchRequest { id_deu_like, id_liked } = dados.into_inner();
+
+    let query = r#"
+        UPDATE public.teste_match
+        SET match = TRUE
+        WHERE id_deu_like = $1 AND id_liked = $2
+    "#;
+
+    let result = sqlx::query(query)
+        .bind(id_deu_like)
+        .bind(id_liked)
+        .execute(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json("Match atualizado com sucesso"),
+        Err(e) => {
+            eprintln!("Erro ao atualizar match: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao atualizar match")
+        }
+    }
+}
+
+// GET: Retorna todos os "matches" de um usuário especificado pelo id_liked
+async fn buscar_matches(
+    pool: web::Data<sqlx::PgPool>,
+    path: web::Path<i32>, // Recebe o id_liked como parâmetro
+) -> impl Responder {
+    let id_liked = path.into_inner();
+
+    let query = r#"
+        SELECT id_deu_like
+        FROM public.teste_match
+        WHERE id_liked = $1 AND match = TRUE
+    "#;
+
+    let result = sqlx::query_scalar::<_, i32>(query)
+        .bind(id_liked)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(ids) => HttpResponse::Ok().json(ids),
+        Err(e) => {
+            eprintln!("Erro ao buscar matches: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar matches")
+        }
+    }
+}
+
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -175,7 +302,11 @@ async fn main() -> std::io::Result<()> {
             .route("/obter_tudo", web::get().to(obter_tudo))
             .route("/deletar/{id_users}", web::delete().to(deletar_dados))
             .route("/atualizar", web::put().to(atualizar_dados))
-    })
+            .route("/add_like", web::post().to(adicionar_like)) // Novo endpoint POST
+            .route("/buscar_likes/{id}", web::get().to(buscar_likes)) // Novo endpoint GET
+            .route("/match", web::put().to(atualizar_match))
+            .route("/matches/{id_liked}", web::get().to(buscar_matches))
+    })    
     .bind("127.0.0.1:8080")?
     .run()
     .await
