@@ -92,12 +92,21 @@ async fn obter_dados(
     }
 }
 
+
+#[derive(Deserialize, Serialize, sqlx::FromRow, ToSchema)]
+
+struct DadosAll {
+    id_users: i32,
+    nome_sub_habilidade: String, // Substituindo id_sub_habilidade
+    descricao: String,
+    valor: f64,
+}
 // GET: Retorna todos os dados da tabela
 #[utoipa::path(
     get,
     path = "/obter_tudo",
     responses(
-        (status = 200, description = "Todos os dados", body = [Dados]),
+        (status = 200, description = "Todos os dados", body = [Dados_all]),
         (status = 500, description = "Erro ao buscar todos os dados")
     )
 )]
@@ -105,11 +114,22 @@ async fn obter_tudo(
     pool: web::Data<sqlx::PgPool>,
 ) -> impl Responder {
     let query = r#"
-        SELECT id_users, id_sub_habilidade, descricao, valor, created_at
-        FROM public.usuario_sub_habilidade
+        SELECT 
+            u.id_users, 
+            u.id_sub_habilidade, 
+            s.nome AS nome_sub_habilidade, 
+            u.descricao, 
+            u.valor, 
+            u.created_at
+        FROM 
+            public.usuario_sub_habilidade AS u
+        INNER JOIN 
+            public.sub_habilidade AS s
+        ON 
+            u.id_sub_habilidade = s.id;
     "#;
 
-    let result = sqlx::query_as::<_, Dados>(query)
+    let result = sqlx::query_as::<_, DadosAll>(query)
         .fetch_all(pool.get_ref())
         .await;
 
@@ -121,6 +141,7 @@ async fn obter_tudo(
         }
     }
 }
+
 
 // DELETE: Deleta todos os dados de um usuário
 #[utoipa::path(
@@ -420,7 +441,7 @@ struct ApiDoc;
             // Swagger UI
             .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8081")?
     .run()
     .await
 }
