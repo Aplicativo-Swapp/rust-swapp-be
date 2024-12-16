@@ -97,6 +97,8 @@ async fn obter_dados(
 
 struct DadosAll {
     id_users: i32,
+    first_name: String,
+    last_name: String,
     nome_sub_habilidade: String, // Substituindo id_sub_habilidade
     descricao: String,
     valor: f64,
@@ -116,6 +118,8 @@ async fn obter_tudo(
     let query = r#"
         SELECT 
             u.id_users, 
+            us.first_name,
+            us.last_name,
             u.id_sub_habilidade, 
             s.nome AS nome_sub_habilidade, 
             u.descricao, 
@@ -126,7 +130,11 @@ async fn obter_tudo(
         INNER JOIN 
             public.sub_habilidade AS s
         ON 
-            u.id_sub_habilidade = s.id;
+            u.id_sub_habilidade = s.id
+        INNER JOIN 
+            public.users AS us
+        ON 
+            u.id_users = us.id;
     "#;
 
     let result = sqlx::query_as::<_, DadosAll>(query)
