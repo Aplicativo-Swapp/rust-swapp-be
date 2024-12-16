@@ -426,22 +426,30 @@ async fn main() -> std::io::Result<()> {
 struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
+    use actix_cors::Cors;
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(pool.clone()))
+            .wrap(
+                Cors::default()
+                    .allow_any_origin() // Permite requisições de qualquer origem
+                    .allow_any_method() // Permite qualquer método HTTP (GET, POST, etc.)
+                    .allow_any_header() // Permite qualquer header
+                    .max_age(3600),     // Configura o cache do CORS para 1 hora
+            )
             .route("/inserir", web::post().to(inserir_dados))
             .route("/obter/{id_users}", web::get().to(obter_dados))
             .route("/obter_tudo", web::get().to(obter_tudo))
             .route("/deletar/{id_users}", web::delete().to(deletar_dados))
             .route("/atualizar", web::put().to(atualizar_dados))
-            .route("/add_like", web::post().to(adicionar_like)) // Novo endpoint POST
-            .route("/buscar_likes/{id}", web::get().to(buscar_likes)) // Novo endpoint GET
+            .route("/add_like", web::post().to(adicionar_like))
+            .route("/buscar_likes/{id}", web::get().to(buscar_likes))
             .route("/match", web::put().to(atualizar_match))
             .route("/matches/{id_liked}", web::get().to(buscar_matches))
-            // Swagger UI
-            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),)
+            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()))
     })
     .bind("127.0.0.1:8081")?
     .run()
     .await
+
 }
