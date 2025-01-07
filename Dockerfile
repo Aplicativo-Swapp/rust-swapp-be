@@ -18,4 +18,5 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y libssl3
 WORKDIR /app
 COPY --from=builder /app/target/release/rust-swapp-be /usr/local/bin
+COPY --from=builder /app/.env /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/rust-swapp-be"]
