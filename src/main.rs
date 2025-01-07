@@ -456,7 +456,7 @@ struct ApiDoc;
             .route("/matches/{id_liked}", web::get().to(buscar_matches))
             .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()))
     })
-    .bind("127.0.0.1:8081")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 
