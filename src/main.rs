@@ -393,10 +393,11 @@ async fn buscar_matches(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenv().ok();
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL deve ser definida no .env");
+    // dotenv().ok();
+    // let database_url = env::var("DATABASE_URL")
+        // .expect("DATABASE_URL deve ser definida no .env");
 
+    let database_url = "postgres://swapp_user:swappsenha@swapp-db.cvm0qsuik7kf.us-east-1.rds.amazonaws.com:5432/postgres"
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
