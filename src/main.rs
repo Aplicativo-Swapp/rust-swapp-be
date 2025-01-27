@@ -1,9 +1,7 @@
 use actix_web::{web, App, HttpServer, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPoolOptions;
-use dotenv::dotenv;
 use utoipa::ToSchema;
-use std::env;
 use chrono::Utc;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -352,8 +350,42 @@ async fn atualizar_match(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/match/delete",
+    request_body = MatchRequest,
+    responses(
+        (status = 200, description = "Match removido com sucesso"),
+        (status = 500, description = "Erro ao remover Match")
+    )
+)]
+async fn excluir_match(
+    pool: web::Data<sqlx::PgPool>,
+    dados: web::Json<MatchRequest>, // Usa uma struct ao invés de tupla
+) -> impl Responder {
+    let MatchRequest { id_deu_like, id_liked } = dados.into_inner();
 
-// PUT: Atualiza a coluna match para true em uma linha específica
+    let query = r#"
+        DELETE FROM teste_match
+        WHERE id_deu_like = $1 AND id_liked = $2;
+    "#;
+
+    let result = sqlx::query(query)
+        .bind(id_deu_like)
+        .bind(id_liked)
+        .execute(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json("Match excluido com sucesso"),
+        Err(e) => {
+            eprintln!("Erro ao excluir match: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao excluir match")
+        }
+    }
+}
+
+
 #[utoipa::path(
     put,
     path = "/historico/add",
@@ -389,11 +421,45 @@ async fn atualizar_historico(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/historico/delete",
+    request_body = MatchRequest,
+    responses(
+        (status = 200, description = "Histórico removido com sucesso"),
+        (status = 500, description = "Erro ao remover do Histórico")
+    )
+)]
+async fn excluir_historico(
+    pool: web::Data<sqlx::PgPool>,
+    dados: web::Json<MatchRequest>, // Usa uma struct ao invés de tupla
+) -> impl Responder {
+    let MatchRequest { id_deu_like, id_liked } = dados.into_inner();
+
+    let query = r#"
+        DELETE FROM historico_match
+        WHERE id1 = $1 AND id2 = $2;
+    "#;
+
+    let result = sqlx::query(query)
+        .bind(id_deu_like)
+        .bind(id_liked)
+        .execute(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json("Histórico excluido com sucesso"),
+        Err(e) => {
+            eprintln!("Erro ao excluir do histórico: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao excluir do  histórico")
+        }
+    }
+}
 
 // GET: Retorna todos os "matches" de um usuário especificado pelo id_liked
 #[utoipa::path(
     get,
-    path = "/matches/{id_liked}",
+    path = "/match/{id_liked}",
     params(
         ("id_liked" = i32, Path, description = "ID do usuário que recebeu os matches")
     ),
@@ -469,14 +535,11 @@ async fn buscar_historico(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // dotenv().ok();
-    // let database_url = env::var("DATABASE_URL")
-        // .expect("DATABASE_URL deve ser definida no .env");
 
     let database_url = "postgres://swapp_user:swappsenha@swapp-db.cvm0qsuik7kf.us-east-1.rds.amazonaws.com:5432/postgres";
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&database_url)
+        .connect(database_url)
         .await
         .expect("Erro ao conectar ao banco de dados");
 
@@ -503,11 +566,13 @@ async fn main() -> std::io::Result<()> {
             atualizar_match,
             buscar_matches,
             buscar_historico,
-            atualizar_historico
+            atualizar_historico,
+            excluir_historico,
+            excluir_match
         ),
         components(schemas(Dados)),
         tags(
-            (name = "Usuario", description = "APIs para gerenciamento de habilidades de usuários")
+            (name = "API - Swapp", description = "APIs para gerenciamento de habilidades de usuários e matches")
         )
     )]
 struct ApiDoc;
@@ -532,9 +597,11 @@ struct ApiDoc;
             .route("/add_like", web::post().to(adicionar_like))
             .route("/buscar_likes/{id}", web::get().to(buscar_likes))
             .route("/match", web::put().to(atualizar_match))
-            .route("/matches/{id_liked}", web::get().to(buscar_matches))
+            .route("/match/{id_liked}", web::get().to(buscar_matches))
+            .route("/match/delete", web::delete().to(excluir_match))
             .route("/historico/add", web::post().to(atualizar_historico))
             .route("/historico/{id}", web::get().to(buscar_historico))
+            .route("/historico/delete", web::delete().to(excluir_historico))
             .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()))
     })
     .bind("0.0.0.0:8080")?
