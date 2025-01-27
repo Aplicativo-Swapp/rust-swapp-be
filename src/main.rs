@@ -396,6 +396,9 @@ async fn atualizar_match(
     delete,
     path = "/match/delete",
     request_body = MatchRequest,
+    params(
+        ("id_users" = i32, Path, description = "ID do usuário")
+    ),
     responses(
         (status = 200, description = "Match removido com sucesso"),
         (status = 500, description = "Erro ao remover Match")
@@ -467,6 +470,9 @@ async fn atualizar_historico(
     delete,
     path = "/historico/delete",
     request_body = MatchRequest,
+    params(
+        ("id" = i32, Path, description = "ID do usuário")
+    ),
     responses(
         (status = 200, description = "Histórico removido com sucesso"),
         (status = 500, description = "Erro ao remover do Histórico")
