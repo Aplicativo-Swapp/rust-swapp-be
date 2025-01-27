@@ -232,7 +232,7 @@ struct LikeRequest {
 // POST: Adiciona um novo "like" na tabela `teste_match`
 #[utoipa::path(
     post,
-    path = "/add_like",
+    path = "/match/add_like",
     request_body = LikeRequest,
     responses(
         (status = 200, description = "Like adicionado com sucesso"),
@@ -269,7 +269,7 @@ async fn adicionar_like(
 // GET: Retorna os IDs de quem deu like em um usuário específico
 #[utoipa::path(
     get,
-    path = "/buscar_likes/{id}",
+    path = "/match/buscar_likes/{id}",
     params(
         ("id" = i32, Path, description = "ID do usuário que recebeu os likes")
     ),
@@ -288,6 +288,48 @@ async fn buscar_likes(
         SELECT id_deu_like
         FROM public.teste_match
         WHERE id_liked = $1
+    "#;
+
+    let result = sqlx::query_as::<_, (i32,)>(query)
+        .bind(id_liked)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(dados) => {
+            let ids: Vec<i32> = dados.into_iter().map(|(id_deu_like,)| id_deu_like).collect();
+            HttpResponse::Ok().json(ids)
+        }
+        Err(e) => {
+            eprintln!("Erro ao buscar likes: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar likes")
+        }
+    }
+}
+
+
+// GET: Retorna os IDs dos usuário quem um user deu like
+#[utoipa::path(
+    get,
+    path = "/buscar_meus_likes/{id}",
+    params(
+        ("id" = i32, Path, description = "ID do usuário que deu os likes")
+    ),
+    responses(
+        (status = 200, description = "IDs de quem deu like", body = [i32]),
+        (status = 500, description = "Erro ao buscar likes")
+    )
+)]
+async fn buscar_meus_likes(
+    pool: web::Data<sqlx::PgPool>,
+    path: web::Path<i32>, // Recebe o ID do usuário (id_deu_like)
+) -> impl Responder {
+    let id_liked = path.into_inner();
+
+    let query = r#"
+        SELECT id_liked
+        FROM public.teste_match
+        WHERE id_deu_like = $1
     "#;
 
     let result = sqlx::query_as::<_, (i32,)>(query)
@@ -594,8 +636,9 @@ struct ApiDoc;
             .route("/obter_tudo", web::get().to(obter_tudo))
             .route("/deletar/{id_users}", web::delete().to(deletar_dados))
             .route("/atualizar", web::put().to(atualizar_dados))
-            .route("/add_like", web::post().to(adicionar_like))
-            .route("/buscar_likes/{id}", web::get().to(buscar_likes))
+            .route("/match/add_like", web::post().to(adicionar_like))
+            .route("/match/buscar_likes/{id}", web::get().to(buscar_likes))
+            .route("/match/buscar_meus_likes/{id}", web::get().to(buscar_meus_likes))
             .route("/match", web::put().to(atualizar_match))
             .route("/match/{id_liked}", web::get().to(buscar_matches))
             .route("/match/delete", web::delete().to(excluir_match))
