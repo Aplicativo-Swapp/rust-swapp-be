@@ -352,6 +352,44 @@ async fn atualizar_match(
     }
 }
 
+
+// PUT: Atualiza a coluna match para true em uma linha específica
+#[utoipa::path(
+    put,
+    path = "/historico/add",
+    request_body = MatchRequest,
+    responses(
+        (status = 200, description = "Histórico atualizado com sucesso"),
+        (status = 500, description = "Erro ao atualizar Histórico")
+    )
+)]
+async fn atualizar_historico(
+    pool: web::Data<sqlx::PgPool>,
+    dados: web::Json<MatchRequest>, // Usa uma struct ao invés de tupla
+) -> impl Responder {
+    let MatchRequest { id_deu_like, id_liked } = dados.into_inner();
+
+    let query = r#"
+        INSERT INTO historico_match (id1, id2)
+        VALUES ($1, $2);
+    "#;
+
+    let result = sqlx::query(query)
+        .bind(id_deu_like)
+        .bind(id_liked)
+        .execute(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json("Histórico atualizado com sucesso"),
+        Err(e) => {
+            eprintln!("Erro ao atualizar histórico: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao atualizar histórico")
+        }
+    }
+}
+
+
 // GET: Retorna todos os "matches" de um usuário especificado pelo id_liked
 #[utoipa::path(
     get,
@@ -378,6 +416,44 @@ async fn buscar_matches(
 
     let result = sqlx::query_scalar::<_, i32>(query)
         .bind(id_liked)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(ids) => HttpResponse::Ok().json(ids),
+        Err(e) => {
+            eprintln!("Erro ao buscar matches: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar matches")
+        }
+    }
+}
+
+// GET: Retorna todos os "matches" de um usuário especificado pelo id_liked
+#[utoipa::path(
+    get,
+    path = "/historico/{id}",
+    params(
+        ("id" = i32, Path, description = "ID do usuário")
+    ),
+    responses(
+        (status = 200, description = "IDs de quem deu match", body = [i32]),
+        (status = 500, description = "Erro ao buscar matches")
+    )
+)]
+async fn buscar_historico(
+    pool: web::Data<sqlx::PgPool>,
+    path: web::Path<i32>, // Recebe o id como parâmetro
+) -> impl Responder {
+    let id = path.into_inner();
+
+    let query = r#"
+        SELECT id2
+        FROM public.historico_match
+        WHERE id1 = $1
+    "#;
+
+    let result = sqlx::query_scalar::<_, i32>(query)
+        .bind(id)
         .fetch_all(pool.get_ref())
         .await;
 
@@ -425,7 +501,9 @@ async fn main() -> std::io::Result<()> {
             adicionar_like,
             buscar_likes,
             atualizar_match,
-            buscar_matches
+            buscar_matches,
+            buscar_historico,
+            atualizar_historico
         ),
         components(schemas(Dados)),
         tags(
@@ -455,6 +533,8 @@ struct ApiDoc;
             .route("/buscar_likes/{id}", web::get().to(buscar_likes))
             .route("/match", web::put().to(atualizar_match))
             .route("/matches/{id_liked}", web::get().to(buscar_matches))
+            .route("/historico/add", web::post().to(atualizar_historico))
+            .route("/historico/{id}", web::get().to(buscar_historico))
             .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()))
     })
     .bind("0.0.0.0:8080")?
