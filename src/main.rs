@@ -293,7 +293,7 @@ async fn buscar_likes(
         FROM 
             public.teste_match tm
         JOIN 
-            usuario_sub_habilidade ush ON tm.id = ush.id_users 
+            usuario_sub_habilidade ush ON tm.id_deu_like = ush.id_users 
         JOIN 
             users us ON ush.id_users = us.id
         JOIN 
@@ -341,23 +341,40 @@ async fn buscar_meus_likes(
     pool: web::Data<sqlx::PgPool>,
     path: web::Path<i32>, // Recebe o ID do usuário (id_deu_like)
 ) -> impl Responder {
-    let id_liked = path.into_inner();
+    let id_deu_like = path.into_inner();
 
     let query = r#"
-        SELECT id_liked
-        FROM public.teste_match
-        WHERE id_deu_like = $1
+        SELECT
+            tm.id_liked,
+            CONCAT(us.first_name, ' ', us.last_name) AS full_name,
+            sh.nome AS habilidade,
+        us.city
+        FROM 
+            public.teste_match tm
+        JOIN 
+            usuario_sub_habilidade ush ON tm.id_liked = ush.id_users 
+        JOIN 
+            users us ON ush.id_users = us.id
+        JOIN 
+            sub_habilidade sh ON ush.id_sub_habilidade = sh.id
+        WHERE 
+            tm.id_deu_like = $1
+        GROUP BY 
+            tm.id_liked, 
+            sh.nome, 
+            us.first_name, 
+            us.last_name, 
+            us.city;
     "#;
 
-    let result = sqlx::query_as::<_, (i32,)>(query)
-        .bind(id_liked)
+    let result = sqlx::query_as::<_, (i32, String, String, String)>(query)
+        .bind(id_deu_like)
         .fetch_all(pool.get_ref())
         .await;
 
     match result {
         Ok(dados) => {
-            let ids: Vec<i32> = dados.into_iter().map(|(id_deu_like,)| id_deu_like).collect();
-            HttpResponse::Ok().json(ids)
+            HttpResponse::Ok().json(dados)
         }
         Err(e) => {
             eprintln!("Erro ao buscar likes: {:?}", e);
