@@ -285,20 +285,37 @@ async fn buscar_likes(
     let id_liked = path.into_inner();
 
     let query = r#"
-        SELECT id_deu_like
-        FROM public.teste_match
-        WHERE id_liked = $1
+        SELECT
+            tm.id_deu_like,
+            CONCAT(us.first_name, ' ', us.last_name) AS full_name,
+            sh.nome AS habilidade,
+            us.city
+        FROM 
+            public.teste_match tm
+        JOIN 
+            usuario_sub_habilidade ush ON tm.id = ush.id_users 
+        JOIN 
+            users us ON ush.id_users = us.id
+        JOIN 
+            sub_habilidade sh ON ush.id_sub_habilidade = sh.id
+        WHERE 
+            tm.id_liked = $1
+        GROUP BY 
+            tm.id_deu_like, 
+            sh.nome, 
+            us.first_name, 
+            us.last_name, 
+            us.city;
     "#;
 
-    let result = sqlx::query_as::<_, (i32,)>(query)
+    let result = sqlx::query_as::<_, (i32, String, String, String)>(query)
         .bind(id_liked)
         .fetch_all(pool.get_ref())
         .await;
 
     match result {
         Ok(dados) => {
-            let ids: Vec<i32> = dados.into_iter().map(|(id_deu_like,)| id_deu_like).collect();
-            HttpResponse::Ok().json(ids)
+            HttpResponse::Ok().json(dados)
         }
         Err(e) => {
             eprintln!("Erro ao buscar likes: {:?}", e);
