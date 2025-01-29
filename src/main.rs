@@ -102,7 +102,7 @@ struct Habilidades {
     path = "/habilidades",
     
     responses(
-        (status = 200, description = "Habilidades retornadas", body = [Dados]),
+        (status = 200, description = "Habilidades retornadas", body = [Habilidades]),
         (status = 500, description = "Erro ao buscar dados")
     )
 )]
@@ -132,7 +132,7 @@ async fn obter_habilidades(
     path = "/sub_habilidades",
     
     responses(
-        (status = 200, description = "Sub-Habilidades retornadas", body = [Dados]),
+        (status = 200, description = "Sub-Habilidades retornadas", body = [Habilidades]),
         (status = 500, description = "Erro ao buscar dados")
     )
 )]
@@ -165,7 +165,7 @@ async fn obter_sub_habilidades(
         ("id_habilidade" = i32, Path, description = "ID da Habilidade")
     ),
     responses(
-        (status = 200, description = "Dados das Sub Habilidades", body = [Dados]),
+        (status = 200, description = "Dados das Sub Habilidades", body = [Habilidades]),
         (status = 500, description = "Erro ao buscar dados")
     )
 )]
@@ -202,7 +202,7 @@ async fn obter_sub_habilidades_habilidades(
         ("id_sub_habilidade" = i32, Path, description = "ID da Sub-Habilidade")
     ),
     responses(
-        (status = 200, description = "Dados da Habilidade", body = [Dados]),
+        (status = 200, description = "Dados da Habilidade", body = [Habilidades]),
         (status = 500, description = "Erro ao buscar dados")
     )
 )]
