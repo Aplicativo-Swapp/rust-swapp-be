@@ -92,6 +92,148 @@ async fn obter_dados(
 
 
 #[derive(Deserialize, Serialize, sqlx::FromRow, ToSchema)]
+struct Habilidades {
+    id: i32,
+    nome: String
+}
+
+#[utoipa::path(
+    get,
+    path = "/habilidades",
+    
+    responses(
+        (status = 200, description = "Habilidades retornadas", body = [Dados]),
+        (status = 500, description = "Erro ao buscar dados")
+    )
+)]
+async fn obter_habilidades(
+    pool: web::Data<sqlx::PgPool>,
+) -> impl Responder {
+    let query = r#"
+        select id, nome
+        from public.habilidade h 
+    "#;
+
+    let result = sqlx::query_as::<_, Habilidades>(query)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(dados) => HttpResponse::Ok().json(dados),
+        Err(e) => {
+            eprintln!("Erro ao buscar dados: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar dados")
+        }
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/sub_habilidades",
+    
+    responses(
+        (status = 200, description = "Sub-Habilidades retornadas", body = [Dados]),
+        (status = 500, description = "Erro ao buscar dados")
+    )
+)]
+async fn obter_sub_habilidades(
+    pool: web::Data<sqlx::PgPool>,
+) -> impl Responder {
+    let query = r#"
+        select id, nome
+        from public.sub_habilidade h 
+    "#;
+
+    let result = sqlx::query_as::<_, Habilidades>(query)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(dados) => HttpResponse::Ok().json(dados),
+        Err(e) => {
+            eprintln!("Erro ao buscar dados: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar dados")
+        }
+    }
+}
+
+
+#[utoipa::path(
+    get,
+    path = "/sub_habilidade_habilidade/{id}",
+    params(
+        ("id_habilidade" = i32, Path, description = "ID da Habilidade")
+    ),
+    responses(
+        (status = 200, description = "Dados das Sub Habilidades", body = [Dados]),
+        (status = 500, description = "Erro ao buscar dados")
+    )
+)]
+async fn obter_sub_habilidades_habilidades(
+    pool: web::Data<sqlx::PgPool>,
+    path: web::Path<i32>, // Recebe o ID da habilidade como parâmetro
+) -> impl Responder {
+    let id_habilidade = path.into_inner();
+    let query = r#"
+        select id, nome
+        from public.sub_habilidade sh 
+        where id_habilidade = $1
+    "#;
+
+    let result = sqlx::query_as::<_, Habilidades>(query)
+        .bind(id_habilidade)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(dados) => HttpResponse::Ok().json(dados),
+        Err(e) => {
+            eprintln!("Erro ao buscar dados: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar dados")
+        }
+    }
+}
+
+
+#[utoipa::path(
+    get,
+    path = "/habilidade_sub_habilidade/{id}",
+    params(
+        ("id_sub_habilidade" = i32, Path, description = "ID da Sub-Habilidade")
+    ),
+    responses(
+        (status = 200, description = "Dados da Habilidade", body = [Dados]),
+        (status = 500, description = "Erro ao buscar dados")
+    )
+)]
+async fn obter_habilidades_sub_habilidades(
+    pool: web::Data<sqlx::PgPool>,
+    path: web::Path<i32>, // Recebe o ID da sub habilidade como parâmetro
+) -> impl Responder {
+    let id_sub_habilidade = path.into_inner();
+    let query = r#"
+        select h.id, h.nome
+        from public.habilidade h 
+        join sub_habilidade sh on sh.id_habilidade = h.id 
+        where sh.id = $1
+    "#;
+
+    let result = sqlx::query_as::<_, Habilidades>(query)
+        .bind(id_sub_habilidade)
+        .fetch_all(pool.get_ref())
+        .await;
+
+    match result {
+        Ok(dados) => HttpResponse::Ok().json(dados),
+        Err(e) => {
+            eprintln!("Erro ao buscar dados: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar dados")
+        }
+    }
+}
+
+
+#[derive(Deserialize, Serialize, sqlx::FromRow, ToSchema)]
 
 struct DadosAll {
     id_users: i32,
@@ -650,7 +792,11 @@ async fn main() -> std::io::Result<()> {
             buscar_historico,
             atualizar_historico,
             excluir_historico,
-            excluir_match
+            excluir_match,
+            obter_habilidades,
+            obter_sub_habilidades_habilidades,
+            obter_sub_habilidades,
+            obter_habilidades_sub_habilidades
         ),
         components(schemas(Dados)),
         tags(
@@ -671,6 +817,10 @@ struct ApiDoc;
                     .allow_any_header() // Permite qualquer header
                     .max_age(3600),     // Configura o cache do CORS para 1 hora
             )
+            .route("/habilidades", web::get().to(obter_habilidades))
+            .route("/sub_habilidades", web::get().to(obter_sub_habilidades))
+            .route("/sub_habilidade_habilidade/{id}", web::get().to(obter_sub_habilidades_habilidades))
+            .route("/habilidade_sub_habilidade/{id}", web::get().to(obter_habilidades_sub_habilidades))
             .route("/inserir", web::post().to(inserir_dados))
             .route("/obter/{id_users}", web::get().to(obter_dados))
             .route("/obter_tudo", web::get().to(obter_tudo))
