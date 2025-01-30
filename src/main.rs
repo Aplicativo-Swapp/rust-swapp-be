@@ -416,7 +416,7 @@ async fn adicionar_like(
         ("id" = i32, Path, description = "ID do usuário que recebeu os likes")
     ),
     responses(
-        (status = 200, description = "IDs de quem deu like", body = [i32]),
+        (status = 200, description = "IDs de quem deu like", body = [(i32, String, String, String)]),
         (status = 500, description = "Erro ao buscar likes")
     )
 )]
@@ -475,7 +475,7 @@ async fn buscar_likes(
         ("id" = i32, Path, description = "ID do usuário que deu os likes")
     ),
     responses(
-        (status = 200, description = "IDs de quem deu like", body = [i32]),
+        (status = 200, description = "IDs de quem deu like", body = [(i32, String, String, String)]),
         (status = 500, description = "Erro ao buscar likes")
     )
 )]
@@ -798,7 +798,10 @@ async fn main() -> std::io::Result<()> {
             obter_sub_habilidades,
             obter_habilidades_sub_habilidades
         ),
-        components(schemas(Dados)),
+        components(
+            schemas(Dados),
+            schemas(Habilidades)
+        ),
         tags(
             (name = "API - Swapp", description = "APIs para gerenciamento de habilidades de usuários e matches")
         )
