@@ -783,6 +783,7 @@ async fn main() -> std::io::Result<()> {
         paths(
             inserir_dados,
             obter_dados,
+            obter_tudo,
             deletar_dados,
             atualizar_dados, 
             adicionar_like,
