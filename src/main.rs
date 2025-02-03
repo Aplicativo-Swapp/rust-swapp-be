@@ -445,7 +445,7 @@ async fn buscar_likes(
         JOIN 
             sub_habilidade sh ON ush.id_sub_habilidade = sh.id
         WHERE 
-            tm.id_liked = $1
+            tm.id_liked = $1 and tm.match=false
         GROUP BY 
             tm.id_deu_like, 
             sh.nome, 
@@ -504,7 +504,7 @@ async fn buscar_meus_likes(
         JOIN 
             sub_habilidade sh ON ush.id_sub_habilidade = sh.id
         WHERE 
-            tm.id_deu_like = $1
+            tm.id_deu_like = $1 and tm.match=false
         GROUP BY 
             tm.id_liked, 
             sh.nome, 
