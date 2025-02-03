@@ -596,7 +596,7 @@ async fn excluir_match(
 
     let query = r#"
         DELETE FROM teste_match
-        WHERE id_deu_like = $1 AND id_liked = $2;
+        WHERE id_deu_like = $1 AND id_liked = $2 or id_deu_like = $2 AND id_liked = $1;
     "#;
 
     let result = sqlx::query(query)
