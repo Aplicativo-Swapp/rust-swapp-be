@@ -376,6 +376,10 @@ struct LikeRequest {
     post,
     path = "/match/add_like",
     request_body = LikeRequest,
+    params(
+        ("id_deu_like" = i32, Path, description = "ID do usuário que deu os likes"),
+        ("id_liked" = i32, Path, description = "ID do usuário que recebeu os likes")
+    ),
     responses(
         (status = 200, description = "Like adicionado com sucesso"),
         (status = 500, description = "Erro ao adicionar like")
@@ -536,6 +540,10 @@ struct MatchRequest {
     put,
     path = "/match",
     request_body = MatchRequest,
+    params(
+        ("id_deu_like" = i32, Path, description = "ID do usuário que deu os likes"),
+        ("id_liked" = i32, Path, description = "ID do usuário que recebeu os likes")
+    ),
     responses(
         (status = 200, description = "Match atualizado com sucesso"),
         (status = 500, description = "Erro ao atualizar match")
@@ -550,7 +558,7 @@ async fn atualizar_match(
     let query = r#"
         UPDATE public.teste_match
         SET match = TRUE
-        WHERE id_deu_like = $1 AND id_liked = $2
+        WHERE id_deu_like = $2 AND id_liked = $1
     "#;
 
     let result = sqlx::query(query)
@@ -611,6 +619,10 @@ async fn excluir_match(
     post,
     path = "/historico/add",
     request_body = MatchRequest,
+    params(
+        ("id_deu_like" = i32, Path, description = "ID do usuário que deu os likes"),
+        ("id_liked" = i32, Path, description = "ID do usuário que recebeu os likes")
+    ),
     responses(
         (status = 200, description = "Histórico atualizado com sucesso"),
         (status = 500, description = "Erro ao atualizar Histórico")
@@ -647,7 +659,8 @@ async fn atualizar_historico(
     path = "/historico/delete",
     request_body = MatchRequest,
     params(
-        ("id" = i32, Path, description = "ID do usuário")
+        ("id_deu_like" = i32, Path, description = "ID do usuário que deu os likes"),
+        ("id_liked" = i32, Path, description = "ID do usuário que recebeu os likes")
     ),
     responses(
         (status = 200, description = "Histórico removido com sucesso"),
@@ -662,7 +675,7 @@ async fn excluir_historico(
 
     let query = r#"
         DELETE FROM historico_match
-        WHERE id1 = $1 AND id2 = $2;
+        WHERE (id1 = $1 AND id2 = $2) OR (id1 = $2 AND id2 = $1);
     "#;
 
     let result = sqlx::query(query)
