@@ -608,7 +608,7 @@ async fn excluir_match(
 
 
 #[utoipa::path(
-    put,
+    post,
     path = "/historico/add",
     request_body = MatchRequest,
     responses(
