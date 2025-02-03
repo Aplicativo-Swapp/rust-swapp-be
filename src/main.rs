@@ -769,6 +769,62 @@ async fn buscar_historico(
     }
 }
 
+async fn all_dados_match(
+    pool: web::Data<sqlx::PgPool>,
+    path: web::Path<i32>, // Recebe o id como parâmetro
+) -> impl Responder {
+    let id = path.into_inner();
+
+    let query = r#"
+        select
+            tm.id_deu_like,
+            CONCAT(uss.first_name, ' ', uss.last_name) as full_name,
+            shh.nome as habilidade,
+            tm.id_liked,
+            CONCAT(us.first_name, ' ', us.last_name) as full_name,
+            sh.nome as habilidade
+        from
+            public.teste_match tm
+        join 
+            usuario_sub_habilidade ush on tm.id_liked = ush.id_users
+        join
+            usuario_sub_habilidade ushh on tm.id_deu_like = ushh.id_users
+        join 
+            users us on ush.id_users = us.id
+        join 
+            users uss on tm.id_deu_like = uss.id
+        join 
+            sub_habilidade sh on ush.id_sub_habilidade = sh.id
+        join 
+            sub_habilidade shh on ushh.id_sub_habilidade = shh.id
+        where
+            tm.id_deu_like = $1
+        group by
+            tm.id_deu_like,
+            uss.first_name,
+            uss.last_name,
+            tm.id_liked,
+            sh.nome,
+            shh.nome,
+            us.first_name,
+            us.last_name;
+    "#;
+
+    let result = sqlx::query_as::<_, (i32, String, String, i32, String, String)>(query)
+        .bind(id)
+        .fetch_all(pool.get_ref())
+        .await;
+
+
+    match result {
+        Ok(ids) => HttpResponse::Ok().json(ids),
+        Err(e) => {
+            eprintln!("Erro ao buscar matches: {:?}", e);
+            HttpResponse::InternalServerError().json("Erro ao buscar matches")
+        }
+    }
+}
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -852,6 +908,7 @@ struct ApiDoc;
             .route("/historico/add", web::post().to(atualizar_historico))
             .route("/historico/{id}", web::get().to(buscar_historico))
             .route("/historico/delete", web::delete().to(excluir_historico))
+            .route("/match/all/{id}", web::get().to(all_dados_match))
             .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()))
     })
     .bind("0.0.0.0:8080")?
