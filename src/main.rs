@@ -798,7 +798,7 @@ async fn all_dados_match(
         join 
             sub_habilidade shh on ushh.id_sub_habilidade = shh.id
         where
-            tm.id_deu_like = $1 and match=true
+            tm.id_liked = $1 and match=true
         group by
             tm.id_deu_like,
             uss.first_name,
