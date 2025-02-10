@@ -696,34 +696,39 @@ async fn excluir_historico(
 // GET: Retorna todos os "matches" de um usuário especificado pelo id_liked
 #[utoipa::path(
     get,
-    path = "/match/{id_liked}",
+    path = "/match/{id_user}",
     params(
-        ("id_liked" = i32, Path, description = "ID do usuário que recebeu os matches")
+        ("id_user" = i32, Path, description = "ID do usuário para buscar os matches")
     ),
     responses(
-        (status = 200, description = "IDs de quem deu match", body = [i32]),
+        (status = 200, description = "IDs dos usuários que deram match", body = [i32]),
         (status = 500, description = "Erro ao buscar matches")
     )
 )]
 async fn buscar_matches(
     pool: web::Data<sqlx::PgPool>,
-    path: web::Path<i32>, // Recebe o id_liked como parâmetro
+    path: web::Path<i32>, // ID do usuário logado
 ) -> impl Responder {
-    let id_liked = path.into_inner();
+    let id_user = path.into_inner();
 
     let query = r#"
-        SELECT id_deu_like
+        SELECT id_deu_like, id_liked
         FROM public.teste_match
-        WHERE id_liked = $1 AND match = TRUE
+        WHERE (id_liked = $1 OR id_deu_like = $1) AND match = TRUE
     "#;
 
-    let result = sqlx::query_scalar::<_, i32>(query)
-        .bind(id_liked)
+    let result = sqlx::query_as::<_, (i32, i32)>(query)
+        .bind(id_user)
         .fetch_all(pool.get_ref())
         .await;
 
     match result {
-        Ok(ids) => HttpResponse::Ok().json(ids),
+        Ok(matches) => {
+            let ids: Vec<i32> = matches.into_iter()
+                .map(|(id1, id2)| if id1 == id_user { id2 } else { id1 }) // Pega o outro usuário do match
+                .collect();
+            HttpResponse::Ok().json(ids)
+        },
         Err(e) => {
             eprintln!("Erro ao buscar matches: {:?}", e);
             HttpResponse::InternalServerError().json("Erro ao buscar matches")
