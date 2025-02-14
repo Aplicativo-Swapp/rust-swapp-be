@@ -71,9 +71,26 @@ async fn obter_dados(
 ) -> impl Responder {
     let id_users = path.into_inner();
     let query = r#"
-        SELECT id_users, id_sub_habilidade, descricao, valor, created_at
-        FROM public.usuario_sub_habilidade
-        WHERE id_users = $1
+        SELECT 
+            u.id_users, 
+            us.first_name,
+            us.last_name,
+            u.id_sub_habilidade, 
+            s.nome AS nome_sub_habilidade, 
+            u.descricao, 
+            u.valor, 
+            u.created_at
+        FROM 
+            public.usuario_sub_habilidade AS u
+        INNER JOIN 
+            public.sub_habilidade AS s
+        ON 
+            u.id_sub_habilidade = s.id
+        INNER JOIN 
+            public.users AS us
+        ON 
+            u.id_users = us.id
+        WHERE id_users = $1;
     "#;
 
     let result = sqlx::query_as::<_, Dados>(query)
