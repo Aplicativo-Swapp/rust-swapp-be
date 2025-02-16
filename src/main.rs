@@ -9,10 +9,15 @@ use utoipa_swagger_ui::SwaggerUi;
 #[derive(Deserialize, Serialize, sqlx::FromRow, ToSchema)]
 struct Dados {
     id_users: i32,
+    first_name: String,
+    last_name: String,
     id_sub_habilidade: i32,
+    nome_sub_habilidade: String,
     descricao: String,
     valor: f64,
 }
+
+
 
 // POST: Insere dados no banco
 #[utoipa::path(
